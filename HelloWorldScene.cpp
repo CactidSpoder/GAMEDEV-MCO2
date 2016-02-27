@@ -1,10 +1,9 @@
+#include "GameOverScene.h"
+#include "GameWinScene.h"
 #include "HelloWorldScene.h"
-#include "GlobalVariables.h"
-#include "Box2D\Box2D.h"
+#include "StartScene.h"
 
 USING_NS_CC;
-
-GlobalVariables global;
 
 Scene* HelloWorld::createScene()
 {	
@@ -29,18 +28,27 @@ bool HelloWorld::init()
     {
         return false;
     }
+	
+	brickCount = 0;
 
 	Size visibleSize = Director::getInstance()->getVisibleSize();
     Vec2 origin = Director::getInstance()->getVisibleOrigin();
 
 	leftIsPressed = false;
 	rightIsPressed = false;
+	
+	auto label = Label::createWithSystemFont("Left Arrow: Move Left\nRight Arrow: Move Right\nP: Pause\nR: Restart", "Arial", 12);
+	label->setAnchorPoint(Vec2(0, 0));
+    this->addChild(label, 1);
+
+
 
     
 	background = Sprite::create("spacey.png");
 	background->setPosition(Point(visibleSize.width / 2 + origin.x, visibleSize.height / 2 + origin.y));
 	
 	this->addChild(background);
+
 
 	ball = Sprite::create("spherical.png");
 	ball->setTag(2);
@@ -57,9 +65,6 @@ bool HelloWorld::init()
 
     ball->setPhysicsBody(ballBody);
 
-
-	float x = sqrt(2);
-
 	paddle = Sprite::create("paddle.png");
 	paddle->setTag(1);
 	paddle->setPosition(315, 75);
@@ -75,22 +80,21 @@ bool HelloWorld::init()
 	
 	for(int y = 0; y < 12; y++)
 	{
-		if(y != 3 || y != 4 || y != 8 || y != 9)
+		if(y != 3 && y != 4 && y != 8 && y != 9)
 			for(int x = 0; x < 14; x++)
 			{
 				auto brick = Sprite::create();
 				if(y < 3)
 					brick->setTexture("normBrick.png");
 				else if(y > 4 && y < 8)
-					brick->setTexture("longBrick.png");
+					brick->setTexture("yellowBrick.png");
 				else if(y > 9)
-					brick->setTexture("jihadiBrick.png");
+					brick->setTexture("redBrick.png");
 
 				brick->setPosition(45 * x, 606 - 21 * y);
 				brick->setAnchorPoint(Vec2(0.0, 0.0));
 				brick->setScale(0.6);
 				brick->setTag(3);
-				CCLOG("HERE");
 				this->addChild(brick);
 
 				auto brickBody = PhysicsBody::createBox(brick->getContentSize(), PhysicsMaterial(10000, 0, 0));
@@ -98,6 +102,8 @@ bool HelloWorld::init()
 				brickBody->setContactTestBitmask(true);
 				brickBody->setGravityEnable(false);
 				brick->setPhysicsBody(brickBody);
+
+				brickCount++;
 			}
 	}
 
@@ -113,6 +119,21 @@ bool HelloWorld::init()
 
             case EventKeyboard::KeyCode::KEY_RIGHT_ARROW:
 				rightIsPressed = true;
+                break;
+
+			case EventKeyboard::KeyCode::KEY_P:
+				if(Director::getInstance()->isPaused())
+					Director::getInstance()->resume();
+				else
+					Director::getInstance()->pause();
+
+                break;
+
+			case EventKeyboard::KeyCode::KEY_R:
+				auto scene = HelloWorld::createScene();
+    
+				Director::getInstance()->pushScene(scene);
+
                 break;
         }
     };
@@ -166,16 +187,15 @@ bool HelloWorld::onContactBegin(PhysicsContact &contact)
 		}
 		else
 		{
-			
 			ricochet(b);
 			b->removeFromParent();
 		}
+
+		brickCount--;
 	}
 	else if((a->getTag() == 1 && b->getTag() == 2) || (a->getTag() == 2 && b->getTag() == 1))
 	{
 		paddlePhysics();
-
-
 	}
 	
     return true;
@@ -183,6 +203,17 @@ bool HelloWorld::onContactBegin(PhysicsContact &contact)
 
 void HelloWorld::update(float dt)
 {
+	if(brickCount == 0)
+	{
+		auto scene = GameWinScene::createScene();
+    
+		Director::getInstance()->pushScene(scene);
+	}
+
+
+
+
+
 	if(leftIsPressed && !rightIsPressed && paddle->getPositionX() > 68)
 	{
 		paddle->getPhysicsBody()->setVelocity(Vec2(-160, 0));
@@ -196,6 +227,26 @@ void HelloWorld::update(float dt)
 		paddle->getPhysicsBody()->setVelocity(Vec2(0, 0));
 	}
 	
+
+	if(abs(ball->getPhysicsBody()->getVelocity().x) < 10)
+	{
+		ball->getPhysicsBody()->setVelocity(Vec2(ball->getPhysicsBody()->getVelocity().x * 9, ball->getPhysicsBody()->getVelocity().y));
+	}
+	else if(ball->getPhysicsBody()->getVelocity().x == 0)
+	{
+		ball->getPhysicsBody()->setVelocity(Vec2(70, ball->getPhysicsBody()->getVelocity().y));
+	}
+
+	if(abs(ball->getPhysicsBody()->getVelocity().y) < 10)
+	{
+		ball->getPhysicsBody()->setVelocity(Vec2(ball->getPhysicsBody()->getVelocity().x, ball->getPhysicsBody()->getVelocity().y * 9));
+	}
+	else if(ball->getPhysicsBody()->getVelocity().y == 0)
+	{
+		ball->getPhysicsBody()->setVelocity(Vec2(ball->getPhysicsBody()->getVelocity().x, 70));
+	}
+
+
 
 	ricochet();
 
@@ -216,6 +267,10 @@ void HelloWorld::ricochet()
 	if(ball->getPositionY() <= 14)
 	{
 		ball->getPhysicsBody()->setVelocity(Vec2(ball->getPhysicsBody()->getVelocity().x, 140));
+
+		auto scene = GameOverScene::createScene();
+    
+		Director::getInstance()->pushScene(scene);
 	}
 	
 	if(ball->getPositionY() >= 620)
@@ -231,9 +286,11 @@ void HelloWorld::ricochet(Sprite *brick)
 
 	if(ball->getPositionX() <= brick->getPositionX() && brick->getPositionX() - halfWidth <= ball->getPositionX())
 	{
+
 		ball->getPhysicsBody()->setVelocity(Vec2(-140, ball->getPhysicsBody()->getVelocity().y));
+
 	}
-	
+
 	if(ball->getPositionX() >= brick->getPositionY() && brick->getPositionX() + halfWidth >= ball->getPositionX())
 	{
 		ball->getPhysicsBody()->setVelocity(Vec2(140, ball->getPhysicsBody()->getVelocity().y));

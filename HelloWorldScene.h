@@ -1,11 +1,7 @@
 #ifndef __HELLOWORLD_SCENE_H__
 #define __HELLOWORLD_SCENE_H__
 
-#include "GlobalVariables.h"
-#include "cocos2d.h"
-#include "Box2D\Box2D.h"
-
-extern GlobalVariables global;
+#include "cocos2d.h";
 
 class HelloWorld : public cocos2d::Layer
 {
@@ -15,6 +11,8 @@ public:
 	cocos2d::Sprite *paddle;
 	boolean leftIsPressed;
 	boolean rightIsPressed;
+	int brickCount;
+
 
     static cocos2d::Scene* createScene();
     virtual bool init();
